@@ -208,4 +208,6 @@ public interface Environment {
 	InputGate getInputGate(int index);
 
 	InputGate[] getAllInputGates();
+
+	int getInputGatesCount();
 }

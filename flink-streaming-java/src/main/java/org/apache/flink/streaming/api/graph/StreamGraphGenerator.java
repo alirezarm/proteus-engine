@@ -23,7 +23,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.google.common.collect.Maps;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -41,9 +44,11 @@ import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.streaming.api.transformations.utils.SideInputInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.UUID;
 /**
  * A generator that generates a {@link StreamGraph} from a graph of
  * {@link StreamTransformation StreamTransformations}.
@@ -523,6 +528,7 @@ public class StreamGraphGenerator {
 	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
+	@SuppressWarnings("unchecked")
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
 		Collection<Integer> inputIds = transform(transform.getInput());
@@ -533,13 +539,27 @@ public class StreamGraphGenerator {
 		}
 
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
+		Map<UUID, Collection<Integer>> sideInputsIds = null;
+		Map<UUID, TypeInformation<?>> sideInputsTypeInfos = null;
+		boolean hasSideInput = transform.hasSideInputs();
+
+		if (hasSideInput) {
+			Map<UUID, StreamTransformation<?>> sideInputs = transform.getSideInputs();
+			sideInputsIds = Maps.newHashMapWithExpectedSize(sideInputs.size());
+			sideInputsTypeInfos = Maps.newHashMapWithExpectedSize(sideInputs.size());
+			for (Map.Entry<UUID, StreamTransformation<?>> pair : sideInputs.entrySet()) {
+				sideInputsIds.put(pair.getKey(), transform(pair.getValue()));
+				sideInputsTypeInfos.put(pair.getKey(), pair.getValue().getOutputType());
+			}
+		}
 
 		streamGraph.addOperator(transform.getId(),
 				slotSharingGroup,
 				transform.getOperator(),
 				transform.getInputType(),
 				transform.getOutputType(),
-				transform.getName());
+				transform.getName(),
+				hasSideInput);
 
 		if (transform.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
@@ -551,6 +571,18 @@ public class StreamGraphGenerator {
 
 		for (Integer inputId: inputIds) {
 			streamGraph.addEdge(inputId, transform.getId(), 0);
+		}
+
+		if (hasSideInput) {
+			int typeId = 1;
+			Map<Integer, SideInputInformation<?>> sideInputInfos = Maps.newHashMapWithExpectedSize(sideInputsTypeInfos.size());
+			for (Map.Entry<UUID, Collection<Integer>> pair : sideInputsIds.entrySet()) {
+				for (int sideInputId : pair.getValue()) {
+					streamGraph.addEdge(sideInputId, transform.getId(), typeId);
+				}
+				sideInputInfos.put(typeId, new SideInputInformation(pair.getKey(), typeId++, sideInputsTypeInfos.get(pair.getKey())));
+			}
+			streamGraph.setSideInputSerializers(transform.getId(), sideInputInfos);
 		}
 
 		return Collections.singleton(transform.getId());

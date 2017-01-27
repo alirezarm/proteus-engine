@@ -24,6 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
+import org.apache.flink.api.common.functions.util.SideInput;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -105,6 +106,16 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
 		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
 	}
+
+	// ------------------------------------------------------------------------
+	//  side input
+	// ------------------------------------------------------------------------
+
+	@Override
+	public <T> List<T> getSideInput(SideInput<T> handle) {
+		return operator.getSideInput(handle.id());
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  key/value state

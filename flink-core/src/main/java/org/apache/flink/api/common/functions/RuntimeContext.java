@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import eu.proteus.flink.annotaton.Proteus;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,6 +28,7 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.util.SideInput;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -437,4 +439,9 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	<UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+	
+	
+	@Proteus
+	@PublicEvolving
+	<T> List<T> getSideInput(SideInput<T> handle);
 }

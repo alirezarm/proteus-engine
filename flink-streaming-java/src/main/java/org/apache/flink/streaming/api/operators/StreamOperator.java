@@ -27,6 +27,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
+import java.util.Iterator;
+import java.util.UUID;
 /**
  * Basic interface for stream operators. Implementers would implement one of
  * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator} or
@@ -148,4 +150,13 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	MetricGroup getMetricGroup();
 
+	// ------------------------------------------------------------------------
+	//  side input handling
+	// ------------------------------------------------------------------------
+
+	void processSideInputElement(UUID id, StreamRecord<?> record) throws Exception;
+
+	void bufferMainElement(StreamRecord<?> record) throws Exception;
+
+	Iterator<StreamRecord<?>> getBufferedElements() throws Exception;
 }
